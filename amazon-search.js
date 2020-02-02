@@ -2,7 +2,7 @@ var amazonSearchModule = (function() {
 
     /// Gets page data, given a Url
     /// Returns a promise
-    function getPage(url) {
+    function privateGetPage(url) {
         let dfd = jQuery.Deferred();
 
         jQuery.get(url, function() {
@@ -15,7 +15,9 @@ var amazonSearchModule = (function() {
         return dfd.promise();
     }
 
-    function getProducts(data) {
+    /// Scrapes the html from an Amazon search results page and returns an array of products.
+    /// Product properties: imgUrl, itemUrl, asin, title, price
+    function privateGetProducts(data) {
         let products = [];
 
         let doc = new DOMParser().parseFromString(data, 'text/html');
@@ -38,17 +40,81 @@ var amazonSearchModule = (function() {
         return products;
     }
 
-    function publicGetProducts(url) {
-        getPage(url).then(function(result) {
+    /// Returns an Amazon search page Url
+    function privateGetSearchUrl(searchTerm) {
+        let searchUrlBase = 'https://www.amazon.com/';
+        let searchUrlTerm = 's?k=' + productTitle + '&';
+        let searchUrlMerchant = 'i=wholefoods';
+
+        return searchUrlBase + searchUrlTerm + searchUrlMerchant;
+    }
+
+    /// Get the title from the details page
+    function privateGetProductTitle() {
+        if(jQuery('#productTitle')[0] !== null) {
+            let title = jQuery('#productTitle')[0].innerText.trim();
+            let lastIndex = title.lastIndexOf(',');
+            if (lastIndex !== -1) {
+                title = title.substring(0, lastIndex);
+                return title;
+            } else return title;
+        } else return null;
+    }
+
+    /// Keys the products keywords
+    function privateGetProductKeywords(maxResults) {
+        let keywords = jQuery('meta[name="keywords"]').attr('content');
+        return keywords.split(',').slice(0, maxResults);
+    }
+
+    function privateGetProductAsin() {
+        return jQuery('.edp-feature-declaration').attr('data-edp-asin');
+    }
+
+
+
+    // === Public Methods === \\    
+
+    /// Give a search term, returns the amazon search page url
+    function getSearchUrl(searchTerm) {
+        return privateGetSearchUrl(searchTerm);
+    }
+
+    /// Must be run on the product details page. Returns the product's title
+    function getProductTitle() {
+        return privateGetProductTitle();
+    }
+
+    /// Given the url to an Amazon search page, returns an array of products on that page.
+    /// Product properties: imgUrl, itemUrl, asin, title, price
+    function getProducts(url) {
+        privateGetPage(url).then(function(result) {
             if (result !== null) {
-                let recs = getProducts(result);
+                let recs = privateGetProducts(result);
                 console.log(recs);
             } else return null;
         });
     }
 
+    /// Must be run on product details page.
+    /// Returns up to maxResults number of keywords for the product
+    function getProductKeywords(maxResults) {
+        return privateGetProductKeywords(maxResults);
+    }
+
+    /// Must be run on product details page.
+    /// Returns the product's Asin.
+    function getProductAsin() {
+        return privateGetProductAsin();
+    }
+
+    // Reveal public methods here
     return {
-        getProducts: publicGetProducts
+        getProducts: getProducts,
+        getSearchUrl: getSearchUrl,
+        getProductTitle: getProductTitle,
+        getProductKeywords: getProductKeywords,
+        getProductAsin: getProductAsin
     };
 
 }) ();
